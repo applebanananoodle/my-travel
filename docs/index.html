@@ -1,0 +1,215 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>나의 여행 선반</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Gothic+A1:wght@400;600&family=Noto+Serif+KR:wght@400;600;700&display=swap" rel="stylesheet">
+<!--
+  나의 여행 선반 · 사이트 쪽
+  이 폴더(docs/)가 GitHub Pages 로 웹에 올라간다. 화면은 이 파일 하나이고, 데이터는 같은 폴더의 shelf.json 하나만 읽는다.
+  사진은 docs/photos/ 에 있다. shelf.json 과 사진은 어드민이 만든다. 여기서 직접 고치지 말고 어드민에서 고친 뒤 게시한다.
+  디자인은 마음대로 바꿔도 된다. shelf.json 을 읽는 부분만 남아 있으면 어드민과 게시는 그대로 돌아간다.
+
+  디자인: 따뜻한 종이 × 나무 선반
+  다녀온 해마다 나무 선반 한 칸. 액자에 넣은 여행 사진이 선반 판자 위에 서 있다.
+  색, 글꼴, 액자 크기만 살짝 바꿀 때는 아래 :root 의 값을 고치면 화면 전체에 반영된다.
+-->
+<style>
+  :root {
+    /* 종이와 글씨 */
+    --paper: #f3ead8; --ink: #3a2a1d; --muted: #8b735c; --line: #dccbae; --accent: #a8432a; --card: #fbf6ea;
+    /* 선반 나무 */
+    --back: #e6d6b8;          /* 선반 안쪽 벽 */
+    --wood-top: #b98552;      /* 선반 판자 윗면 */
+    --wood: #8a5a34;          /* 선반 판자 앞면 */
+    --wood-dark: #5c3a20;     /* 판자 아랫부분, 옆판 */
+    --plate: #c9a86b;         /* 연도 이름표 */
+    --frame: #6b4428;         /* 액자 테두리 */
+    --mat: #fdfaf2;           /* 액자 안쪽 흰 여백 */
+    /* 크기 */
+    --item-w: 190px;                               /* 액자 한 칸 너비 */
+    --item-h: 170px;                               /* 액자가 설 수 있는 최대 높이 */
+    --mat-w: 8px;                                  /* 흰 여백 두께 */
+    --frame-w: 5px;                                /* 액자 테두리 두께 */
+    --board: 16px;                                 /* 선반 판자 두께 */
+    --headroom: 26px;                              /* 액자 위 여유 공간 */
+    --row: calc(var(--item-h) + var(--headroom) + var(--board));
+    --side: 14px;                                  /* 선반 옆판 두께 */
+    --serif: "Noto Serif KR", "Nanum Myeongjo", "AppleMyungjo", "Batang", serif;
+    --sans: "Gothic A1", -apple-system, "Apple SD Gothic Neo", "Malgun Gothic", sans-serif;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --paper: #1f1913; --ink: #efe3cf; --muted: #a8927a; --line: #3d3125; --accent: #e08a62; --card: #2a2219;
+      --back: #2b2219; --wood-top: #8a5d38; --wood: #634026; --wood-dark: #3f2816; --plate: #a88a52;
+      --frame: #4a2f1b; --mat: #efe6d4;
+    }
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; color: var(--ink); font-family: var(--sans);
+    background-color: var(--paper);
+    /* 종이 결. 아주 옅은 잡티를 깔아 매끈한 화면 대신 종이처럼 보이게 */
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='180' height='180'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 .35 0 0 0 0 .25 0 0 0 0 .15 0 0 0 .07 0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+  }
+  header { padding: 56px 24px 8px; max-width: 1180px; margin: 0 auto; text-align: center; }
+  h1 { font-family: var(--serif); font-size: clamp(30px, 5.5vw, 48px); font-weight: 700; letter-spacing: -0.01em; margin: 0; }
+  .owner { color: var(--muted); margin-top: 10px; font-size: 14px; }
+  .owner::before, .owner::after { content: "—"; margin: 0 10px; opacity: .5; }
+  main { max-width: 1180px; margin: 0 auto; padding: 8px 24px 64px; }
+
+  /* 다녀온 해마다 선반 한 칸 */
+  .year { margin-top: 48px; }
+  .year h2 { margin: 0 0 14px; text-align: center; }
+  .plate {
+    display: inline-block; font-family: var(--serif); font-size: 15px; font-weight: 600; color: #3b2a14;
+    background: linear-gradient(180deg, #e0c48c, var(--plate)); padding: 5px 16px; border-radius: 3px;
+    box-shadow: inset 0 0 0 1px rgba(90,60,20,.35), 0 1px 2px rgba(0,0,0,.15); letter-spacing: .04em;
+  }
+  .plate small { font-weight: 400; opacity: .75; margin-left: 6px; font-size: 13px; }
+
+  /* 선반 틀. 줄 높이(--row)마다 아래쪽에 판자를 그린다. 기록이 여러 줄이 되면 판자도 줄마다 생긴다 */
+  .grid {
+    display: grid; grid-template-columns: repeat(auto-fill, var(--item-w));
+    grid-auto-rows: var(--row); column-gap: 22px; row-gap: 0; justify-content: start;
+    padding: 0 22px; border-left: var(--side) solid var(--wood-dark); border-right: var(--side) solid var(--wood-dark);
+    border-top: 10px solid var(--wood-dark); border-radius: 4px 4px 0 0;
+    background:
+      linear-gradient(to bottom, transparent calc(100% - var(--board)), var(--wood-top) calc(100% - var(--board)),
+        var(--wood-top) calc(100% - var(--board) + 3px), var(--wood) calc(100% - var(--board) + 3px), var(--wood-dark) 100%)
+        0 0 / 100% var(--row) repeat-y,
+      linear-gradient(to bottom, rgba(50,30,10,.20), transparent 22px) 0 0 / 100% var(--row) repeat-y,
+      var(--back);
+    background-origin: padding-box;   /* 위쪽 여백이 없어서 줄 시작과 판자 간격이 맞는다. 판자는 옆판까지 닿는다 */
+    background-clip: padding-box;
+    box-shadow: 0 14px 22px -12px rgba(50,30,10,.45);
+  }
+
+  /* 여행 한 곳. 액자가 판자 위에 아래를 맞춰 선다 */
+  .trip {
+    display: flex; flex-direction: column; justify-content: flex-end; align-items: center;
+    padding: 0 0 var(--board); background: none; border: 0; cursor: pointer; color: inherit; font: inherit;
+  }
+  .frame { position: relative; display: block; padding: var(--mat-w); background: var(--mat);
+    border: var(--frame-w) solid var(--frame); border-radius: 2px;
+    box-shadow: inset 0 0 0 1px rgba(0,0,0,.08), -3px 3px 7px rgba(40,22,8,.32);
+    transition: transform .2s ease, filter .2s ease; transform-origin: bottom center; }
+  .trip img { display: block; width: auto; height: auto;
+    max-width: calc(var(--item-w) - 2 * (var(--mat-w) + var(--frame-w)));
+    max-height: calc(var(--item-h) - 2 * (var(--mat-w) + var(--frame-w)));
+    box-shadow: inset 0 0 0 1px rgba(0,0,0,.1); }
+  .trip:hover .frame, .trip:focus-visible .frame { transform: translateY(-6px) rotate(-1deg); filter: drop-shadow(0 10px 10px rgba(40,22,8,.28)); }
+  .trip:focus-visible { outline: none; }
+  .trip:focus-visible .frame { outline: 2px solid var(--accent); outline-offset: 3px; }
+
+  /* 다시 가고 싶은 곳에는 액자 모서리에 빨간 핀 */
+  .pin { position: absolute; top: -9px; right: 10px; width: 14px; height: 14px; border-radius: 50%; z-index: 2;
+    background: radial-gradient(circle at 35% 35%, #e9806a, var(--accent) 60%, #6e2414);
+    box-shadow: 0 2px 3px rgba(0,0,0,.35); }
+
+  /* 사진이 없는 곳은 엽서 카드로 */
+  .nophoto { display: flex; flex-direction: column; justify-content: center; align-items: flex-start; gap: 6px; padding: 14px 16px; text-align: left;
+    background: var(--card); color: var(--ink); border: 1px solid var(--line); }
+  .trip .nophoto { width: calc(var(--item-w) - 2 * (var(--mat-w) + var(--frame-w))); height: calc(var(--item-h) * .62 - 2 * (var(--mat-w) + var(--frame-w))); }
+  .nophoto b { font-family: var(--serif); font-size: 15px; line-height: 1.4; font-weight: 600; }
+  .nophoto span { font-size: 12px; color: var(--muted); }
+
+  /* 기록 상세 */
+  dialog { border: 0; border-radius: 6px; padding: 0; width: min(780px, calc(100% - 32px)); max-height: calc(100vh - 32px); background: var(--card); color: var(--ink);
+    box-shadow: 0 20px 50px rgba(30,18,6,.35); }
+  dialog::backdrop { background: rgba(40,26,12,.55); }
+  .detail { padding: 28px 32px 30px; }
+  .detail .big { display: block; margin: 0 auto 22px; max-width: 100%; max-height: 58vh; padding: 10px; background: var(--mat);
+    border: 6px solid var(--frame); box-shadow: -3px 4px 14px rgba(40,22,8,.3); }
+  .where { color: var(--muted); font-size: 14px; letter-spacing: .02em; }
+  .detail h3 { font-family: var(--serif); font-size: 26px; font-weight: 700; margin: 4px 0 6px; line-height: 1.35; }
+  .meta { color: var(--muted); font-size: 14px; line-height: 1.75; }
+  .tag { display: inline-block; margin: 14px 0 0; padding: 3px 10px; border: 1px solid var(--accent); border-radius: 99px;
+    color: var(--accent); font-size: 13px; }
+  .memo { margin-top: 18px; padding-top: 16px; border-top: 1px dashed var(--line); font-family: var(--serif); font-size: 16px; line-height: 1.85; white-space: pre-wrap; }
+  .close { position: absolute; top: 8px; right: 12px; border: 0; background: none; font-size: 26px; color: var(--muted); cursor: pointer; }
+
+  @media (max-width: 600px) {
+    :root { --item-w: 132px; --item-h: 120px; --mat-w: 5px; --frame-w: 4px; --headroom: 18px; --board: 12px; --side: 8px; }
+    main { padding: 8px 16px 48px; }
+    header { padding: 40px 16px 4px; }
+    .grid { column-gap: 10px; padding: 0 10px; }
+    .nophoto b { font-size: 13px; }
+    .detail { padding: 34px 20px 24px; }
+    .detail h3 { font-size: 22px; }
+  }
+  footer { max-width: 1180px; margin: 0 auto; padding: 24px; color: var(--muted); font-size: 12.5px; border-top: 1px solid var(--line); text-align: center; }
+  .empty { color: var(--muted); padding: 60px 0; text-align: center; font-family: var(--serif); }
+</style>
+</head>
+<body>
+<header>
+  <h1 id="title">나의 여행 선반</h1>
+  <p class="owner" id="owner"></p>
+</header>
+<main id="shelf"></main>
+<dialog id="dlg"><button class="close" aria-label="닫기" onclick="document.getElementById('dlg').close()">×</button><div id="detail"></div></dialog>
+<footer><span id="updated"></span></footer>
+<script>
+const $ = s => document.querySelector(s);
+const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+let TRIPS = [];
+
+// 2025-03-14 → 2025년 3월 14일. 아는 만큼만 적혀 있어도 된다
+const whenText = d => !d ? '' : d.split('-').map((v, i) => Number(v) + ['년', '월', '일'][i]).join(' ');
+const whereText = t => [t.country, t.city].filter(Boolean).join(' · ');
+
+function photoHtml(t) {
+  return t.photo
+    ? `<img src="${esc(t.photo)}" alt="${esc(t.place)}" loading="lazy">`
+    : `<div class="nophoto"><b>${esc(t.place)}</b><span>📍 ${esc(whereText(t) || '어딘가')}</span></div>`;
+}
+
+function render(data) {
+  const shelf = data.shelf || {};
+  document.title = shelf.title || '나의 여행 선반';
+  $('#title').textContent = shelf.title || '나의 여행 선반';
+  TRIPS = data.trips || [];
+  const countries = new Set(TRIPS.map(t => t.country).filter(Boolean)).size;
+  $('#owner').textContent = (shelf.owner ? `${shelf.owner} · ` : '') + `${TRIPS.length}곳` + (countries ? ` · ${countries}개 나라` : '');
+  $('#updated').textContent = data.updated ? `${data.updated} 업데이트` : '';
+  if (!TRIPS.length) { $('#shelf').innerHTML = '<p class="empty">아직 선반에 올린 여행이 없어요.</p>'; return; }
+
+  // 다녀온 해로 묶는다. shelf.json 이 이미 최근 순으로 정렬돼 있고, 날짜를 모르는 곳은 맨 아래 칸
+  const yearOf = t => (t.date || '').slice(0, 4) || '날짜 미정';
+  const years = [...new Set(TRIPS.map(yearOf))];
+  $('#shelf').innerHTML = years.map(y => {
+    const list = TRIPS.filter(t => yearOf(t) === y);
+    return `<section class="year"><h2><span class="plate">${esc(y)}<small>${list.length}곳</small></span></h2><div class="grid">${
+      list.map(t => `<button class="trip" data-id="${t.id}" title="${esc(t.place)}"><span class="frame">${photoHtml(t)}${
+        t.fav ? '<i class="pin" aria-label="다시 가고 싶은 곳"></i>' : ''}</span></button>`).join('')
+    }</div></section>`;
+  }).join('');
+}
+
+function openTrip(id) {
+  const t = TRIPS.find(x => x.id === id);
+  if (!t) return;
+  $('#detail').innerHTML = `<div class="detail">
+    ${t.photo ? `<img class="big" src="${esc(t.photo)}" alt="${esc(t.place)}">` : ''}
+    ${whereText(t) ? `<div class="where">📍 ${esc(whereText(t))}</div>` : ''}
+    <h3>${esc(t.place)}</h3>
+    ${t.date ? `<div class="meta">${esc(whenText(t.date))}에 다녀옴</div>` : ''}
+    ${t.fav ? '<p class="tag">♥ 다시 가고 싶은 곳</p>' : ''}
+    ${t.memo ? `<p class="memo">${esc(t.memo)}</p>` : ''}
+  </div>`;
+  $('#dlg').showModal();
+}
+
+$('#shelf').addEventListener('click', e => { const el = e.target.closest('.trip'); if (el) openTrip(Number(el.dataset.id)); });
+$('#dlg').addEventListener('click', e => { if (e.target.id === 'dlg') $('#dlg').close(); });   // 바깥을 누르면 닫힘
+
+// 캐시 때문에 게시한 내용이 늦게 보이지 않게 매번 새로 받는다
+fetch('shelf.json?t=' + Date.now()).then(r => r.json()).then(render)
+  .catch(() => { $('#shelf').innerHTML = '<p class="empty">shelf.json 을 읽지 못했어요. 어드민에서 [게시]를 눌렀는지 확인해 주세요.</p>'; });
+</script>
+</body>
+</html>

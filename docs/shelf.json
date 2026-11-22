@@ -1,0 +1,59 @@
+{
+ "shelf": {
+  "title": "나의 여행 선반",
+  "owner": ""
+ },
+ "updated": "2026-11-22",
+ "trips": [
+  {
+   "id": 1,
+   "photo": "photos/trip-1.webp",
+   "place": "오로라",
+   "country": "노르웨이",
+   "city": "트롬소",
+   "date": "",
+   "memo": "",
+   "fav": false
+  },
+  {
+   "id": 2,
+   "photo": "photos/trip-2.jpg",
+   "place": "우붓 수영장",
+   "country": "인도네시아",
+   "city": "발리",
+   "date": "",
+   "memo": "",
+   "fav": false
+  },
+  {
+   "id": 3,
+   "photo": "photos/trip-3.jpg",
+   "place": "엑스포 그랜드 링",
+   "country": "일본",
+   "city": "오사카",
+   "date": "",
+   "memo": "",
+   "fav": false
+  },
+  {
+   "id": 4,
+   "photo": "photos/trip-4.jpg",
+   "place": "멜버른 도시 풍경",
+   "country": "호주",
+   "city": "멜버른",
+   "date": "",
+   "memo": "",
+   "fav": false
+  },
+  {
+   "id": 5,
+   "photo": "photos/trip-5.jpg",
+   "place": "베슬",
+   "country": "미국",
+   "city": "뉴욕",
+   "date": "",
+   "memo": "",
+   "fav": false
+  }
+ ]
+}
