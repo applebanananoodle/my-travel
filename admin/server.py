@@ -12,6 +12,10 @@
   어드민의 [게시] 버튼  →  docs/shelf.json (사이트가 읽는 파일)
   git push            →  웹에 반영
 
+Google 지도 키는 .env 에 둔다 (GOOGLE_MAPS_KEY). .env 자체는 .gitignore 로 GitHub 에 올라가지 않지만,
+지도를 그리려면 [게시]할 때 키가 docs/shelf.json 에 들어가 웹에 공개된다. 지도 키는 원래 그렇게 쓰는 것이라
+Google Cloud 콘솔에서 '내 사이트 주소에서만', 'Maps Embed API 만' 쓰이도록 꼭 제한해 둔다. README 참고.
+
 [게시]를 따로 둔 이유. 어드민에서 고치는 중인 것이 바로 웹에 나가지 않게 하려고.
 고치고, 로컬 미리보기로 확인하고, 게시하고, push 하는 네 걸음이다.
 
@@ -21,6 +25,7 @@
 """
 import base64
 import json
+import os
 import re
 import secrets
 import sys
@@ -37,11 +42,31 @@ DOCS = ROOT / "docs"                               # GitHub Pages 가 여는 폴
 PHOTOS = DOCS / "photos"                           # 올린 사진. 사이트에서 공개된다
 TRIPS_PATH = ROOT / "data" / "trips.json"          # 내 기록 원본
 SHELF_PATH = DOCS / "shelf.json"                   # 사이트가 읽는 파일
+ENV_PATH = ROOT / ".env"                           # Google 지도 키. GitHub 에 올라가지 않는다
 DEFAULT_PORT = 8798                                 # 책장 어드민(8799)과 동시에 켤 수 있게
 MAX_PHOTO = 8 * 1024 * 1024                        # 사진 한 장 최대 8MB (어드민이 미리 줄여서 보낸다)
 
 
-# ───────────────────────────── ① 저장 ─────────────────────────────
+# ───────────────────────────── ① 설정과 저장 ─────────────────────────────
+def read_env():
+    """ .env 의 KEY=값 줄을 읽는다. 환경변수에 같은 이름이 있으면 그쪽이 먼저다. """
+    env = {}
+    if ENV_PATH.exists():
+        for line in ENV_PATH.read_text(encoding="utf-8").splitlines():
+            line = line.strip()
+            if line and not line.startswith("#") and "=" in line:
+                k, v = line.split("=", 1)
+                env[k.strip()] = v.strip().strip('"').strip("'")
+    if os.environ.get("GOOGLE_MAPS_KEY"):
+        env["GOOGLE_MAPS_KEY"] = os.environ["GOOGLE_MAPS_KEY"]
+    return env
+
+
+def maps_key():
+    key = read_env().get("GOOGLE_MAPS_KEY", "").strip()
+    return "" if not key or key.startswith("여기에") else key
+
+
 def load_db():
     if not TRIPS_PATH.exists():
         return {"shelf": {"title": "나의 여행 선반", "owner": ""}, "trips": []}
@@ -92,11 +117,12 @@ def delete_photo(path, db):
 
 # ───────────────────────────── ③ 기록 다루기 ─────────────────────────────
 # 여행 한 건에 들어가는 칸. 어드민 입력 화면과 사이트가 이 이름을 같이 쓴다.
-#   photo 사진 경로, place 장소, country 나라, city 도시, date 다녀온 날, memo 메모, fav 다시 가고 싶은 곳
-FIELDS = ["photo", "place", "country", "city", "date", "memo", "fav"]
+#   photo 사진 경로, place 장소, country 나라, city 도시, address 지도에 표시할 주소,
+#   date 다녀온 날, memo 메모, fav 다시 가고 싶은 곳
+FIELDS = ["photo", "place", "country", "city", "address", "date", "memo", "fav"]
 
 # 이 가운데 사이트(docs/shelf.json)로 내보내는 칸. 게시와 '게시하지 않은 변경' 확인이 같이 쓴다
-PUBLIC_FIELDS = ["id", "photo", "place", "country", "city", "date", "memo", "fav"]
+PUBLIC_FIELDS = ["id", "photo", "place", "country", "city", "address", "date", "memo", "fav"]
 
 # 다녀온 날은 2025-03-14, 2025-03, 2025 가운데 아는 만큼. 모르면 비워 둔다
 DATE_RE = re.compile(r"\d{4}(-(0[1-9]|1[0-2])(-(0[1-9]|[12]\d|3[01]))?)?")
@@ -107,7 +133,7 @@ def clean_trip(data, old=None):
     for k in FIELDS:
         if k in data:
             trip[k] = data[k]
-    for k in ("place", "country", "city", "date", "memo", "photo"):
+    for k in ("place", "country", "city", "address", "date", "memo", "photo"):
         trip[k] = (trip.get(k) or "").strip()
     if not trip["place"]:
         raise ValueError("장소가 비어 있어요")
@@ -137,6 +163,8 @@ def publish(db):
         "updated": date.today().isoformat(),
         "trips": [{k: t.get(k) for k in PUBLIC_FIELDS} for t in trips],
     }
+    if maps_key():
+        out["maps"] = {"key": maps_key()}   # 사이트가 지도를 그릴 때 쓴다. 웹에 공개되므로 Google 에서 사용처를 제한해 둘 것
     DOCS.mkdir(exist_ok=True)
     SHELF_PATH.write_text(json.dumps(out, ensure_ascii=False, indent=1) + "\n", encoding="utf-8")
     return len(trips)
@@ -152,7 +180,8 @@ def published_differs(db):
         return True
     ids = lambda items: sorted((t.get("id"), json.dumps(t, sort_keys=True, ensure_ascii=False)) for t in items)
     mine = [{k: t.get(k) for k in PUBLIC_FIELDS} for t in db["trips"]]
-    return ids(mine) != ids(pub.get("trips", [])) or pub.get("shelf") != db.get("shelf")
+    maps = {"key": maps_key()} if maps_key() else None
+    return ids(mine) != ids(pub.get("trips", [])) or pub.get("shelf") != db.get("shelf") or pub.get("maps") != maps
 
 
 # ───────────────────────────── ④ 서버 ─────────────────────────────
@@ -210,7 +239,7 @@ class Handler(SimpleHTTPRequestHandler):
                 return self.send_file(target)
             if u.path == "/api/trips":
                 db = load_db()
-                return self.send_json({**db, "unpublished": published_differs(db)})
+                return self.send_json({**db, "unpublished": published_differs(db), "hasMapsKey": bool(maps_key())})
             self.send_error(404)
         except Exception as e:  # 화면에 원인을 그대로 보여 준다. 막히면 그 문장을 Claude 에게 보여 주면 된다
             self.send_json({"error": str(e)}, 500)

@@ -130,6 +130,10 @@
   .tag { display: inline-block; margin: 14px 0 0; padding: 3px 10px; border: 1px solid var(--accent); border-radius: 99px;
     color: var(--accent); font-size: 13px; }
   .memo { margin-top: 18px; padding-top: 16px; border-top: 1px dashed var(--line); font-family: var(--serif); font-size: 16px; line-height: 1.85; white-space: pre-wrap; }
+  /* 지도. 키가 있으면 상세 창 안에 Google 지도를 띄우고, 없으면 Google 지도로 가는 링크만 둔다 */
+  .map { margin-top: 20px; border: 6px solid var(--frame); background: var(--mat); padding: 6px; box-shadow: -3px 4px 14px rgba(40,22,8,.2); }
+  .map iframe { display: block; width: 100%; height: 300px; border: 0; }
+  .maplink { display: inline-block; margin-top: 12px; color: var(--accent); font-size: 14px; }
   .close { position: absolute; top: 8px; right: 12px; border: 0; background: none; font-size: 26px; color: var(--muted); cursor: pointer; }
 
   @media (max-width: 600px) {
@@ -156,11 +160,13 @@
 <script>
 const $ = s => document.querySelector(s);
 const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
-let TRIPS = [];
+let TRIPS = [], MAPS_KEY = '';
 
 // 2025-03-14 → 2025년 3월 14일. 아는 만큼만 적혀 있어도 된다
 const whenText = d => !d ? '' : d.split('-').map((v, i) => Number(v) + ['년', '월', '일'][i]).join(' ');
 const whereText = t => [t.country, t.city].filter(Boolean).join(' · ');
+// 지도에서 찾을 말. 어드민에 적은 주소가 있으면 그것, 없으면 장소·도시·나라
+const mapQuery = t => (t.address || [t.place, t.city, t.country].filter(Boolean).join(' ')).trim();
 
 function photoHtml(t) {
   return t.photo
@@ -173,6 +179,7 @@ function render(data) {
   document.title = shelf.title || '나의 여행 선반';
   $('#title').textContent = shelf.title || '나의 여행 선반';
   TRIPS = data.trips || [];
+  MAPS_KEY = data.maps?.key || '';
   const countries = new Set(TRIPS.map(t => t.country).filter(Boolean)).size;
   $('#owner').textContent = (shelf.owner ? `${shelf.owner} · ` : '') + `${TRIPS.length}곳` + (countries ? ` · ${countries}개 나라` : '');
   $('#updated').textContent = data.updated ? `${data.updated} 업데이트` : '';
@@ -190,6 +197,16 @@ function render(data) {
   }).join('');
 }
 
+function mapHtml(t) {
+  const q = encodeURIComponent(mapQuery(t));
+  if (!q) return '';
+  const link = `<a class="maplink" href="https://www.google.com/maps/search/?api=1&query=${q}" target="_blank" rel="noopener">📍 Google 지도에서 보기 ↗</a>`;
+  if (!MAPS_KEY) return link;
+  const src = `https://www.google.com/maps/embed/v1/place?key=${encodeURIComponent(MAPS_KEY)}&q=${q}&language=ko`;
+  return `<div class="map"><iframe src="${esc(src)}" title="${esc(t.place)} 지도" loading="lazy" allowfullscreen
+    referrerpolicy="no-referrer-when-downgrade"></iframe></div>${link}`;
+}
+
 function openTrip(id) {
   const t = TRIPS.find(x => x.id === id);
   if (!t) return;
@@ -200,6 +217,7 @@ function openTrip(id) {
     ${t.date ? `<div class="meta">${esc(whenText(t.date))}에 다녀옴</div>` : ''}
     ${t.fav ? '<p class="tag">♥ 다시 가고 싶은 곳</p>' : ''}
     ${t.memo ? `<p class="memo">${esc(t.memo)}</p>` : ''}
+    ${mapHtml(t)}
   </div>`;
   $('#dlg').showModal();
 }

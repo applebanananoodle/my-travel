@@ -30,7 +30,7 @@
   .panel h2 { font-size: 15px; margin: 0 0 12px; }
   .full { grid-column: 1 / -1; }
   .notice { background: var(--warn); border: 1px solid #ecd9a0; border-radius: 10px; padding: 12px 16px; }
-  .guide code { background: #0000000d; padding: 1px 5px; border-radius: 4px; }
+  .notice code, .guide code { background: #0000000d; padding: 1px 5px; border-radius: 4px; }
   .row { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
   input[type=text], textarea { border: 1px solid var(--line); border-radius: 7px; padding: 7px 10px; background: #fff; width: 100%; }
   textarea { min-height: 80px; resize: vertical; }
@@ -70,6 +70,10 @@
 </div>
 
 <div class="wrap">
+  <div class="full notice" id="mapsNotice" hidden>
+    <b>Google 지도 키가 아직 없어요.</b> 키가 없어도 사이트의 "Google 지도에서 보기" 링크는 돼요. 상세 창 안에 지도를 띄우려면
+    이 폴더의 <code>.env.example</code>을 복사해 이름을 <code>.env</code>로 바꾸고 키를 붙여 넣은 뒤 [게시]를 다시 눌러 주세요. 키 받는 법은 README에 있어요.
+  </div>
   <div class="full notice" id="sampleNotice" hidden>
     지금 기록 중 <b><span id="sampleCount"></span>건은 샘플</b>이에요. 내 여행을 몇 건 적은 뒤 지워 주세요.
     <button class="btn small" id="clearSamples">샘플 지우기</button>
@@ -93,6 +97,8 @@
           <div><label>나라</label><input type="text" id="f_country" placeholder="예: 노르웨이"></div>
           <div><label>도시</label><input type="text" id="f_city" placeholder="예: 트롬소"></div>
         </div>
+        <label>지도에 표시할 주소 (선택)</label><input type="text" id="f_address" placeholder="예: Hamnøy, Lofoten, Norway">
+        <span class="muted">비워 두면 장소·도시·나라로 지도를 찾아요. 엉뚱한 곳이 나오면 정확한 주소나 건물 이름을 적어 주세요</span>
         <label>다녀온 날</label><input type="text" id="f_date" inputmode="numeric" placeholder="예: 2025-03-14 또는 2025-03"><span class="muted">연도만 적어도 되고, 모르면 비워 두세요</span>
         <label class="check"><input type="checkbox" id="f_fav"> ♥ 다시 가고 싶은 곳</label>
         <label>메모</label><textarea id="f_memo" placeholder="그날의 날씨, 먹은 것, 기억하고 싶은 장면"></textarea>
@@ -152,6 +158,7 @@ const whenText = d => !d ? '날짜 미정' : d.split('-').map((v, i) => Number(v
 async function load() {
   STATE = await api('/api/trips');
   const samples = STATE.trips.filter(t => t.sample).length;
+  $('#mapsNotice').hidden = STATE.hasMapsKey;
   $('#sampleNotice').hidden = !samples; $('#sampleCount').textContent = samples;
   $('#pubState').textContent = STATE.unpublished ? '게시하지 않은 변경 있음' : '게시됨';
   $('#pubState').className = 'badge' + (STATE.unpublished ? ' need' : '');
@@ -199,7 +206,7 @@ $('#dropPhoto').onclick = () => { pending = null; photo = ''; showPhoto(); };
 function fillForm(t = {}, id = null) {
   editing = id; photo = t.photo || ''; pending = null;
   $('#formTitle').textContent = id ? `고치기 · ${t.place}` : '1. 여행 기록하기';
-  for (const k of ['place', 'country', 'city', 'date', 'memo']) $('#f_' + k).value = t[k] || '';
+  for (const k of ['place', 'country', 'city', 'address', 'date', 'memo']) $('#f_' + k).value = t[k] || '';
   $('#f_fav').checked = !!t.fav;
   $('#saveTrip').textContent = id ? '고친 내용 저장' : '선반에 올리기';
   $('#cancelTrip').hidden = !id;
@@ -209,7 +216,7 @@ function fillForm(t = {}, id = null) {
 async function saveTrip() {
   const btn = $('#saveTrip'); btn.disabled = true;
   try {
-    const body = { place: $('#f_place').value, country: $('#f_country').value, city: $('#f_city').value,
+    const body = { place: $('#f_place').value, country: $('#f_country').value, city: $('#f_city').value, address: $('#f_address').value,
       date: $('#f_date').value, memo: $('#f_memo').value, fav: $('#f_fav').checked, photo };
     if (!body.place.trim()) throw new Error('장소를 적어 주세요');
     if (pending) body.photo = (await api('/api/photo', { method: 'POST', body: { data: pending } })).photo;   // 사진은 저장할 때 올린다
